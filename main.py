@@ -5,7 +5,7 @@ from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 import numpy as np
-from typing import List
+from typing import List, Union
 from sklearn.preprocessing import PolynomialFeatures
 import torch
 import os
@@ -43,7 +43,8 @@ model = load_model()
 
 # 请求和响应模型
 class EmbeddingRequest(BaseModel):
-    input: List[str]
+    # input: List[str]
+    input: Union[str, List[str]]
     model: str
 
 
@@ -78,9 +79,11 @@ async def get_embeddings(
             detail="Invalid authorization code",
         )
 
+    input_data = [request.input] if isinstance(request.input, str) else request.input
+
     # 计算嵌入向量
     embeddings = [
-        model.encode(text, normalize_embeddings=True) for text in request.input
+        model.encode(text, normalize_embeddings=True) for text in input_data
     ]
     embeddings = [process_embedding(embedding, 1536) for embedding in embeddings]
 
@@ -89,8 +92,8 @@ async def get_embeddings(
 
     # 转换为列表
     embeddings = [embedding.tolist() for embedding in embeddings]
-    prompt_tokens = sum(len(text.split()) for text in request.input)
-    total_tokens = sum(len(text) for text in request.input)  # 示例：计算总tokens数量
+    prompt_tokens = sum(len(text.split()) for text in input_data)
+    total_tokens = sum(len(text) for text in input_data)  # 示例：计算总tokens数量
 
     response = {
         "data": [
